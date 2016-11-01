@@ -8,6 +8,11 @@ var users = [];
 var user_beacons = [];
 var user_brightness = [];
 
+function set_lights(beacon, brightness)
+{
+	console.log("adjusting beacon", beacon, "lights to", brightness);
+}
+
 //We need a function which handles requests and send response
 function handleRequest(request, response){
     response.end('Message Received');
@@ -17,11 +22,16 @@ function handleRequest(request, response){
 	var data = data_string.split(":");
 	var user =       data[0];
 	var beacon =     data[1];
-	var brightness = data[2];
+	var brightness = parseInt(data[2]);
 
 	// Ensure message was ok
 	if( data.length != 3 )
 	   console.log("Malformed message received! Need user:beacon:brightness");	
+
+	console.log("Message received:");
+	console.log(data);
+	
+	var old_beacon = -1;
 
 	// Check if user is known
 	var uid = -1;
@@ -32,8 +42,6 @@ function handleRequest(request, response){
 			uid = i;
 		}
 	}
-
-	var old_beacon = -1;
 
 	// If it's a new user, add to list
 	if( uid == -1 )
@@ -51,52 +59,53 @@ function handleRequest(request, response){
 		user_brightness[uid] = brightness;
 	}
 
-	// Check if beacon is in use by another user
-	var other_users = [];
-	for( var i = 0; i < user_beacons.length; i++ )
+	// Adjust new beacon lights
+	/////////////////////////////////
+	var avg_brightness = 0;
+	var num_beacon_users = 0;
+	for( var i = 0; i < users.length; i++ )
 	{
-		// If beacon found, add to shared list
-		if( user_beacons[i] == beacon && i != uid)
+		if( user_beacons[i] == beacon )
 		{
-			other_users.push(i);
-		}
-	}	
-
-	// If no other users are using beacon, set lights
-	if( other_users.length < 1 )
-	{
-		// Turn new beacon lights on
-		set_lights(beacon, brightness);
-		
-		// Turn old beacon lights off
-		set_lights(beacon, 0);
-
+			avg_brightness += user_brightness[i];
+			num_beacon_users++;
+		}	
 	}
-	// If there are other users sharing that beacon,
-	// average out brightness levels
-	else
-	{
-		// Determine avg. brightness for new beacon
-		var avg_brightness = brightness;
-		for( var i = 0; i < other_users.length; i++ )
-		{
-			avg_brightness = avg_brightness + user_brightness[other_users[i]];
-		}
-		var num_users = 1 + other_users.length;
-		avg_brightness = avg_brightness / num_users;
+	avg_brightness /= num_beacon_users;
 
-		// Turn new beacon lights on
-		set_lights(beacon, avg_brightness);
+	// Set new beacon lights on
+	set_lights(beacon, avg_brightness);
 
-		// Adjust old beacon lights, or turn off
-
-	}
-
+	// Adjust old beacon lights
+	/////////////////////////////////
 	
+	// If this is a new user, don't do anything
+	// otherwise, set old beacon to average for its users
+	if( old_beacon != -1 )
+	{
+		var avg_brightness = 0;
+		var num_beacon_users = 0;
+		for( var i = 0; i < users.length; i++ )
+		{
+			if( user_beacons[i] == old_beacon )
+			{
+				avg_brightness += user_brightness[i];
+				num_beacon_users++;
+			}	
+		}
+		avg_brightness /= num_beacon_users;
 
+		// Set new beacon lights on
+		set_lights(old_beacon, avg_brightness);
+	}
 
-
-	console.log(data);
+	console.log("State:");
+	console.log("usernames:");
+	console.log(users);
+	console.log("beacon IDs:");
+	console.log(user_beacons);
+	console.log("brightnesses:");
+	console.log(user_brightness);
 }
 
 //Create a server
