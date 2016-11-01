@@ -1,17 +1,89 @@
-//Lets require/import the HTTP module
+'use strict';
+
+// Module Imports
 var http = require('http');
+let huejay = require('huejay');
+
 
 //Lets define a port we want to listen to
 const PORT=8080; 
+
+// Phillips Hue Bridge Client
+let client = new huejay.Client({
+  host:     '192.168.1.85',
+  port:     80,               // Optional
+  username: 'B0noiskmvMoWf1-3MTik8WeZAaAlBwpBFpPHibob', // Optional
+  timeout:  15000,            // Optional, timeout in milliseconds (15000 is the default)
+});
 
 var users = [];
 var user_beacons = [];
 var user_brightness = [];
 
-function set_lights(beacon, brightness)
+function set_light(light_id, brightness)
+{
+	console.log("Setting light", light_id, "to", brightness);
+	// Convert brightness percent to phillips 0 to 254 scale
+	brightness = (brightness / 100.0) * 254.0;
+	var hue_brightness = Math.floor(brightness)
+	console.log("Hue brightness = ", hue_brightness);
+
+	// Set Brightness using HueJay API
+	client.lights.getAll();
+
+	client.lights.getById(light_id)
+	.then(light => {
+		if( brightness > 1 )
+		{
+			light.on = true;
+			light.brightness = hue_brightness;
+		}
+		else
+		{
+			light.on = false;
+		}
+
+
+	return client.lights.save(light);
+	})
+	.then(light => {
+	console.log(`Updated light [${light.id}]`);
+	})
+	.catch(error => {
+	console.log('Something went wrong');
+	console.log(error.stack);
+	});
+
+}
+
+function set_beacon_lights(beacon, brightness)
 {
 	console.log("adjusting beacon", beacon, "lights to", brightness);
+	
+	// Basic one, with zone A being light 1, zone B being light 2
+	var beacons = ["A", "B"];
+	var lights = [];
+	lights.push([1]);
+	lights.push([2]);
+
+	// Correlate a beacon to a list of lights
+	var beacon_id = -1;
+	for( var i = 0; i < beacons.length; i++ )
+	{
+		if( beacons[i] == beacon )
+			beacon_id = i;
+	}
+
+	// Set all lights in list to a specific brightness
+	if( beacon_id != -1 )
+	{
+		for( var i = 0; i < lights[beacon_id].length; i++ )
+		{
+			set_light(lights[beacon_id][i], brightness);
+		}
+	}
 }
+
 
 //We need a function which handles requests and send response
 function handleRequest(request, response){
@@ -74,7 +146,7 @@ function handleRequest(request, response){
 	avg_brightness /= num_beacon_users;
 
 	// Set new beacon lights on
-	set_lights(beacon, avg_brightness);
+	set_beacon_lights(beacon, avg_brightness);
 
 	// Adjust old beacon lights
 	/////////////////////////////////
@@ -96,7 +168,7 @@ function handleRequest(request, response){
 		avg_brightness /= num_beacon_users;
 
 		// Set new beacon lights on
-		set_lights(old_beacon, avg_brightness);
+		set_beacon_lights(old_beacon, avg_brightness);
 	}
 
 	console.log("State:");
