@@ -3,6 +3,7 @@
 // Module Imports
 var http = require('http');
 let huejay = require('huejay');
+var os = require( 'os' );
 
 let config = require('./config');
 
@@ -20,16 +21,19 @@ function set_light(light_id, brightness)
 {
 	console.log("Setting light", light_id, "to", brightness);
 	// Convert brightness percent to phillips 0 to 254 scale
-	brightness = (brightness / 100.0) * 254.0;
-	var hue_brightness = Math.floor(brightness)
-	console.log("Hue brightness = ", hue_brightness);
+	if( brightness > 0 )
+	{
+		brightness = (brightness / 100.0) * 254.0;
+		var hue_brightness = Math.floor(brightness)
+		console.log("Hue brightness = ", hue_brightness);
+	}
 
 	// Set Brightness using HueJay API
 	client.lights.getAll();
 
 	client.lights.getById(light_id)
 	.then(light => {
-		if( brightness > 1 )
+		if( brightness > 0 )
 		{
 			light.on = true;
 			light.brightness = hue_brightness;
@@ -81,7 +85,10 @@ function handleRequest(request, response){
 
 	// Ensure message was ok
 	if( data.length != 3 )
+	{
 	   console.log("Malformed message received! Need user:beacon:brightness");
+	   return;
+	}
 
 	console.log("Message received:");
 	console.log(data);
@@ -168,6 +175,18 @@ var server = http.createServer(handleRequest);
 
 //Lets start our server
 server.listen(PORT, function(){
-    //Callback triggered when server is successfully listening. Hurray!
-    console.log("Server listening on: http://localhost:%s", PORT);
+
+	// Get current IP address that we are listening on
+	var networkInterfaces = os.networkInterfaces( );
+	var ip;
+	try {
+		// This should be correct for wifi connected tessel2
+		ip = networkInterfaces.wlan0[0].address;
+	} catch (err) {
+		// This is if we're running node server on laptop
+		ip = "localhost";
+	}
+
+	// Inform user where to connect
+    console.log("Server listening on: http://%s:%s", ip, PORT);
 });
