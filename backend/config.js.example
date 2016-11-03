@@ -1,0 +1,16 @@
+'use strict';
+
+let huejay = require('huejay');
+
+module.exports = {
+	// Phillips Hue Bridge Client
+	client: new huejay.Client({
+		host:     '192.168.1.189',
+		port:     80,  // Port
+		username: 'onqoK1S0QMqy9IzTeXnAEsu15itYTQbItx37LX9J', // Username (if you don't have one run create_hue_user.js first)
+		timeout:  15000,  // Timeout in milliseconds
+    }),
+
+	// Beacons IDs map to lists of Light IDs
+	beacon_to_lights: {"A":[1, 2, 3], "B":[4, 5, 6]}
+};
