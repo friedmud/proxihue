@@ -4,17 +4,13 @@
 var http = require('http');
 let huejay = require('huejay');
 
+let config = require('./config');
+
+let client = config.client
+let beacon_to_lights = config.beacon_to_lights
 
 //Lets define a port we want to listen to
-const PORT=8080; 
-
-// Phillips Hue Bridge Client
-let client = new huejay.Client({
-  host:     '192.168.1.85',
-  port:     80,               // Optional
-  username: 'B0noiskmvMoWf1-3MTik8WeZAaAlBwpBFpPHibob', // Optional
-  timeout:  15000,            // Optional, timeout in milliseconds (15000 is the default)
-});
+const PORT=8080;
 
 var users = [];
 var user_beacons = [];
@@ -59,27 +55,14 @@ function set_light(light_id, brightness)
 function set_beacon_lights(beacon, brightness)
 {
 	console.log("adjusting beacon", beacon, "lights to", brightness);
-	
-	// Basic one, with zone A being light 1, zone B being light 2
-	var beacons = ["A", "B"];
-	var lights = [];
-	lights.push([1]);
-	lights.push([2]);
-
-	// Correlate a beacon to a list of lights
-	var beacon_id = -1;
-	for( var i = 0; i < beacons.length; i++ )
-	{
-		if( beacons[i] == beacon )
-			beacon_id = i;
-	}
 
 	// Set all lights in list to a specific brightness
-	if( beacon_id != -1 )
+	if( beacon in beacon_to_lights )
 	{
-		for( var i = 0; i < lights[beacon_id].length; i++ )
+		var lights = beacon_to_lights[beacon]
+		for( var i = 0; i < lights.length; i++ )
 		{
-			set_light(lights[beacon_id][i], brightness);
+			set_light(lights[i], brightness);
 		}
 	}
 }
@@ -98,11 +81,11 @@ function handleRequest(request, response){
 
 	// Ensure message was ok
 	if( data.length != 3 )
-	   console.log("Malformed message received! Need user:beacon:brightness");	
+	   console.log("Malformed message received! Need user:beacon:brightness");
 
 	console.log("Message received:");
 	console.log(data);
-	
+
 	var old_beacon = -1;
 
 	// Check if user is known
@@ -141,7 +124,7 @@ function handleRequest(request, response){
 		{
 			avg_brightness += user_brightness[i];
 			num_beacon_users++;
-		}	
+		}
 	}
 	avg_brightness /= num_beacon_users;
 
@@ -150,7 +133,7 @@ function handleRequest(request, response){
 
 	// Adjust old beacon lights
 	/////////////////////////////////
-	
+
 	// If this is a new user, don't do anything
 	// otherwise, set old beacon to average for its users
 	if( old_beacon != -1 )
@@ -163,7 +146,7 @@ function handleRequest(request, response){
 			{
 				avg_brightness += user_brightness[i];
 				num_beacon_users++;
-			}	
+			}
 		}
 		avg_brightness /= num_beacon_users;
 
