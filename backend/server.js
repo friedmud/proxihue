@@ -33,6 +33,7 @@ function set_light(light_id, brightness)
 		{
 			light.on = true;
 			light.brightness = hue_brightness;
+			light.transitionTime = 1.0;
 		}
 		else
 		{
