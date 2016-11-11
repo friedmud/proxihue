@@ -95,6 +95,7 @@ function handleRequest(request, response){
 	console.log(data);
 
 	var old_beacon = -1;
+	var old_brightness = -1;
 
 	// Check if user is known
 	var uid = -1;
@@ -118,9 +119,16 @@ function handleRequest(request, response){
 	else
 	{
 		old_beacon = user_beacons[uid];
+		old_brightness = user_brightness[uid];
+		
 		user_beacons[uid] = beacon;
 		user_brightness[uid] = brightness;
 	}
+
+	// If they're still in the same room, with the same
+	// brightness then there is nothing to do
+	if( old_beacon == beacon && old_brightness == brightness )
+		return
 
 	// Adjust new beacon lights
 	/////////////////////////////////
