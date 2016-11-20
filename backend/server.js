@@ -17,6 +17,9 @@ var users = [];
 var user_beacons = [];
 var user_brightness = [];
 
+var light_to_num_users = {}
+var light_to_brightness = {}
+
 function set_light(light_id, brightness)
 {
 	console.log("Setting light", light_id, "to", brightness);
@@ -56,7 +59,7 @@ function set_light(light_id, brightness)
 	});
 
 }
-
+/*
 function set_beacon_lights(beacon, brightness)
 {
 	console.log("adjusting beacon", beacon, "lights to", brightness);
@@ -71,7 +74,7 @@ function set_beacon_lights(beacon, brightness)
 		}
 	}
 }
-
+*/
 
 //We need a function which handles requests and send response
 function handleRequest(request, response){
@@ -114,6 +117,20 @@ function handleRequest(request, response){
 		user_beacons.push(beacon);
 		user_brightness.push(brightness);
 		uid = 0;
+
+		// Add this user and brightness to each light
+		beacon_to_lights[beacon].forEach(function(light)
+		{
+			if (light in light_to_num_users)
+				light_to_num_users[light]++
+			else
+				light_to_num_users[light] = 1
+
+			if (light in light_to_brightness)
+				light_to_brightness[light] += brightness
+			else
+				light_to_brightness[light] = brightness
+		})
 	}
 	// If it's a known user, update their beacon
 	else
@@ -123,6 +140,34 @@ function handleRequest(request, response){
 		
 		user_beacons[uid] = beacon;
 		user_brightness[uid] = brightness;
+
+		// Remove this user from the old lights
+		beacon_to_lights[old_beacon].forEach(function(light)
+		{
+			if (light in light_to_num_users)
+				light_to_num_users[light]--
+			else
+				light_to_num_users[light] = 0
+
+			if (light in light_to_brightness)
+				light_to_brightness[light] -= old_brightness
+			else
+				light_to_brightness[light] = 0
+		})
+
+		// Add this user to the new lights
+		beacon_to_lights[beacon].forEach(function(light)
+		{
+			if (light in light_to_num_users)
+				light_to_num_users[light]++
+			else
+				light_to_num_users[light] = 1
+
+			if (light in light_to_brightness)
+				light_to_brightness[light] += brightness
+			else
+				light_to_brightness[light] = brightness
+		})
 	}
 
 	// If they're still in the same room, with the same
@@ -130,45 +175,37 @@ function handleRequest(request, response){
 	if( old_beacon == beacon && old_brightness == brightness )
 		return
 
-	// Adjust new beacon lights
-	/////////////////////////////////
-	var avg_brightness = 0;
-	var num_beacon_users = 0;
-	for( var i = 0; i < users.length; i++ )
+	var affected_lights = new Set()
+
+	// Grab all of the info for the beacon the user moved from
+	if (old_beacon != -1)
 	{
-		if( user_beacons[i] == beacon )
+		beacon_to_lights[old_beacon].forEach(function(light)
 		{
-			avg_brightness += user_brightness[i];
-			num_beacon_users++;
-		}
+			affected_lights.add(light)
+		})
 	}
-	avg_brightness /= num_beacon_users;
 
-	// Set new beacon lights on
-	set_beacon_lights(beacon, avg_brightness);
-
-	// Adjust old beacon lights
-	/////////////////////////////////
-
-	// If this is a new user, don't do anything
-	// otherwise, set old beacon to average for its users
-	if( old_beacon != -1 )
+	// Grab all of the info for the beacon the user moved to
+	beacon_to_lights[beacon].forEach(function(light)
 	{
-		var avg_brightness = 0;
-		var num_beacon_users = 0;
-		for( var i = 0; i < users.length; i++ )
-		{
-			if( user_beacons[i] == old_beacon )
-			{
-				avg_brightness += user_brightness[i];
-				num_beacon_users++;
-			}
-		}
-		avg_brightness /= num_beacon_users;
+		affected_lights.add(light)
+	})
 
-		// Set new beacon lights on
-		set_beacon_lights(old_beacon, avg_brightness);
-	}
+	// Adjust each light
+	affected_lights.forEach(function(light)
+	{
+		console.log("light_to_num_users: ")
+		console.log(light_to_num_users)
+		
+		if (light_to_num_users[light] > 0)
+			set_light(light, light_to_brightness[light] / light_to_num_users[light])
+		else
+		{
+			set_light(light, 0)
+			light_to_brightness[light] = 0 // Just a little bit of a reset
+		}
+	})
 
 	console.log("State:");
 	console.log("usernames:");
